@@ -11,9 +11,14 @@
 #include <string.h>
 #include <assert.h>
 
+#include <sys/stat.h> // directory creation
+#include <sys/types.h>
+
 #include "common.h"
 #include "yar.h" // from z64compress
+#include "n64texconv.h" // from z64convert
 #include "recipe.h"
+#include "stb_image_write.h"
 
 struct YarEntry
 {
@@ -123,11 +128,49 @@ static int YarUnyar(const char *infn, const char *outfn)
 static int YarDump(const char *input)
 {
 	struct Recipe *recipe = RecipeRead(input);
+	struct Yar *yar = YarRead(recipe->yarName);
+	struct YarEntry *yarEntry;
+	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	
+	assert(buffer);
+	
+	if (!yar)
+		return EXIT_FAILURE;
 	
 	RecipePrint(recipe);
 	
-	RecipeFree(recipe);
+	mkdir(recipe->imageDir, 0777);
+	yarEntry = yar->head;
+	for (struct RecipeItem *this = recipe->head
+		; this && yarEntry
+		; this = this->next, yarEntry = yarEntry->next
+	)
+	{
+		unsigned unused;
+		
+		// decompress the compressed texture
+		spinout_yaz_dec(yarEntry->data, buffer, 0, &unused);
+		
+		// convert to standard 32-bit rgba
+		n64texconv_to_rgba8888(
+			buffer
+			, buffer
+			, 0
+			, N64TEXCONV_IA // TODO this is placeholder
+			, N64TEXCONV_4 // TODO this is placeholder
+			, this->width
+			, this->height
+		);
+		
+		// write as png
+		fprintf(stderr, "writing '%s'\n", this->imageFilename);
+		stbi_write_png(this->imageFilename, this->width, this->height, 4, buffer, this->width * 4);
+	}
 	
+	RecipeFree(recipe);
+	YarFree(yar);
+	
+	free(buffer);
 	return EXIT_SUCCESS;
 }
 

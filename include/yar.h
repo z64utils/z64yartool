@@ -37,5 +37,7 @@ yar_reencode(
 
 int unyar(const char *infn, const char *outfn, int isHeaderless);
 
+int spinout_yaz_dec(void *_src, void *_dst, unsigned dstSz, unsigned *srcSz);
+
 #endif /* Z64YAR_H_INCLUDED */
 

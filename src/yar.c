@@ -281,7 +281,6 @@ yar_reencode(
  */
 
 /* yaz decoder, courtesy of spinout182 */
-static
 int spinout_yaz_dec(void *_src, void *_dst, unsigned dstSz, unsigned *srcSz)
 {
 	unsigned char *src = _src;
@@ -291,6 +290,9 @@ int spinout_yaz_dec(void *_src, void *_dst, unsigned dstSz, unsigned *srcSz)
 	
 	unsigned int validBitCount = 0; /*number of valid bits left in "code" byte*/
 	unsigned char currCodeByte = 0;
+	
+	if (dstSz == 0)
+		dstSz = u32b(src + 4);
 	
 	int uncompressedSize = dstSz;
 	
