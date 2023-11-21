@@ -208,8 +208,8 @@ static int YarBuild(const char *input)
 		const char *imgFn = this->imageFilename;
 		const char *errmsg = 0;
 		void *pix;
-		int w;
-		int h;
+		int w = 0;
+		int h = 0;
 		int unused;
 		unsigned int sz;
 		
