@@ -107,7 +107,7 @@ static int YarStat(const char *input)
 	fprintf(stdout, "%.*s/ # where the images live\n", (int)(period - input), input);
 	
 	for (struct YarEntry *this = yar->head; this; this = this->next)
-		fprintf(stdout, "32x32,rgba32,%08x.png\n", this->dataAddrUnyar);
+		fprintf(stdout, "??x??,unknown,%08x.png\n", this->dataAddrUnyar);
 	
 	YarFree(yar);
 	return EXIT_SUCCESS;
@@ -156,8 +156,8 @@ static int YarDump(const char *input)
 			buffer
 			, buffer
 			, 0
-			, N64TEXCONV_IA // TODO this is placeholder
-			, N64TEXCONV_4 // TODO this is placeholder
+			, this->fmt
+			, this->bpp
 			, this->width
 			, this->height
 		);

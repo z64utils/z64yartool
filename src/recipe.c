@@ -19,6 +19,8 @@ struct Recipe *RecipeRead(const char *filename)
 	char *data = FileLoadAsString(filename);
 	struct RecipeItem *prev = 0;
 	const char *step;
+	 // color-indexed formats are unsupported for now
+	const char *knownFmt = "rgba16, rgba32, ia4, ia8, ia16, i4, i8";
 	
 	if (!data)
 	{
@@ -61,6 +63,34 @@ struct Recipe *RecipeRead(const char *filename)
 		if (sscanf(tmp, "%dx%d,%[^,]", &width, &height, fmt) != 3)
 		{
 			fprintf(stderr, "unexpectedly formatted line: '%s'\n", tmp);
+			exit(EXIT_FAILURE);
+		}
+		
+		// TODO check each combination individually since there are so few
+		if (strstr(fmt, "rgba"))
+			this->fmt = N64TEXCONV_RGBA;
+		//else if (strstr(fmt, "ci")) // color-indexed formats are unsupported for now
+		//	this->fmt = N64TEXCONV_CI;
+		else if (strstr(fmt, "ia"))
+			this->fmt = N64TEXCONV_IA;
+		else if (strstr(fmt, "i"))
+			this->fmt = N64TEXCONV_I;
+		else
+		{
+			fprintf(stderr, "unknown texture format '%s', valid formats:\n%s\n", fmt, knownFmt);
+			exit(EXIT_FAILURE);
+		}
+		if (strstr(fmt, "4"))
+			this->bpp = N64TEXCONV_4;
+		else if (strstr(fmt, "8"))
+			this->bpp = N64TEXCONV_8;
+		else if (strstr(fmt, "16"))
+			this->bpp = N64TEXCONV_16;
+		else if (strstr(fmt, "32"))
+			this->bpp = N64TEXCONV_32;
+		else
+		{
+			fprintf(stderr, "unknown texture format '%s', valid formats:\n%s\n", fmt, knownFmt);
 			exit(EXIT_FAILURE);
 		}
 		

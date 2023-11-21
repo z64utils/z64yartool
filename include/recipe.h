@@ -8,12 +8,16 @@
 #ifndef RECIPE_H_INCLUDED
 #define RECIPE_H_INCLUDED
 
+#include "n64texconv.h" // for texture formats
+
 struct RecipeItem
 {
 	struct RecipeItem *next;
 	char *imageFilename;
 	int width;
 	int height;
+	enum n64texconv_fmt fmt;
+	enum n64texconv_bpp bpp;
 };
 
 struct Recipe
