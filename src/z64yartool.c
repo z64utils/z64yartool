@@ -133,6 +133,7 @@ static int YarDump(const char *input)
 	struct Yar *yar = YarRead(recipe->yarName);
 	struct YarEntry *yarEntry;
 	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	void *bufferOut = malloc(1024 * 1024);
 	
 	assert(buffer);
 	
@@ -158,8 +159,10 @@ static int YarDump(const char *input)
 		spinout_yaz_dec(yarEntry->data, buffer, 0, &unused);
 		
 		// convert to standard 32-bit rgba
+		// TODO fix n64texconv_to_rgba8888 so in-place 4-bit conversions don't corrupt first pixel
+		//      (using two buffers is an acceptable solution in the meantime)
 		n64texconv_to_rgba8888(
-			buffer
+			bufferOut
 			, buffer
 			, 0
 			, this->fmt
@@ -170,13 +173,14 @@ static int YarDump(const char *input)
 		
 		// write as png
 		fprintf(stderr, "writing '%s'\n", this->imageFilename);
-		stbi_write_png(this->imageFilename, this->width, this->height, 4, buffer, this->width * 4);
+		stbi_write_png(this->imageFilename, this->width, this->height, 4, bufferOut, this->width * 4);
 	}
 	
 	RecipeFree(recipe);
 	YarFree(yar);
 	
 	free(buffer);
+	free(bufferOut);
 	return EXIT_SUCCESS;
 }
 
