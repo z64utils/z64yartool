@@ -206,7 +206,7 @@ int main(int argc, const char *argv[])
 	fprintf(stderr, "welcome to z64yartool v1.0.0 <z64.me>\n");
 	fprintf(stderr, "build date: TODO\n");
 	
-	if (strcmp(command, "unyar") && argc != 3)
+	if ((!command || strcmp(command, "unyar")) && argc != 3)
 		ShowArgsAndExit();
 	
 	if (!strcmp(command, "stat"))
