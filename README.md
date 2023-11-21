@@ -3,7 +3,7 @@
 - `stat`
 - `unyar`
 - `dump`
-- `build` (not yet implemented)
+- `build`
 
 The commands are intended to be used in the above order. Let's walk through them.
 ## `stat`
@@ -53,5 +53,8 @@ z64yartool dump icon_item_static.txt
 ```
 The recipe is what contains the dumping instructions, such as where the `.yar` file can be found (relative to the recipe file), to which directory the images should be written (also relative to the recipe file), the dimensions, formats, and filenames for each image.
 ## `build`
-Not yet implemented, but this is planned to work identically to the `dump` command. It will do the same things, but in reverse order.
+Build a recipe using the `build` command. It works identically to the `dump` command, but in reverse order. This means the `.yar` file referenced by the recipe will be overwritten. Keep backups in case you need them. Example usage:
+```
+z64yartool build icon_item_static.txt
+```
 
