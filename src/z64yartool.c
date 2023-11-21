@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "yar.h" // from z64compress
+#include "recipe.h"
 
 struct YarEntry
 {
@@ -121,6 +122,12 @@ static int YarUnyar(const char *infn, const char *outfn)
 
 static int YarDump(const char *input)
 {
+	struct Recipe *recipe = RecipeRead(input);
+	
+	RecipePrint(recipe);
+	
+	RecipeFree(recipe);
+	
 	return EXIT_SUCCESS;
 }
 
