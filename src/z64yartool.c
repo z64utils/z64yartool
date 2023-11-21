@@ -90,11 +90,15 @@ void YarFree(struct Yar *yar)
 static int YarStat(const char *input)
 {
 	struct Yar *yar = YarRead(input);
+	const char *period = strrchr(input, '.');
+	
+	assert(period);
 	
 	if (!yar)
 		return EXIT_FAILURE;
 	
 	fprintf(stdout, "%s # relative path\n", input);
+	fprintf(stdout, "%.*s/ # where the images live\n", (int)(period - input), input);
 	
 	for (struct YarEntry *this = yar->head; this; this = this->next)
 		fprintf(stdout, "32x32,rgba32,%08x.png\n", this->dataAddrUnyar);
