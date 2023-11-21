@@ -18,6 +18,7 @@ struct RecipeItem
 	int height;
 	enum n64texconv_fmt fmt;
 	enum n64texconv_bpp bpp;
+	unsigned int endOffset;
 };
 
 struct Recipe
@@ -27,6 +28,7 @@ struct Recipe
 	char *yarName;
 	char *imageDir;
 	struct RecipeItem *head;
+	int count;
 };
 
 struct Recipe *RecipeRead(const char *filename);

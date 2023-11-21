@@ -62,6 +62,14 @@ bool FileIsLoaded(const char *fn, const void *data)
 	return true;
 }
 
+void FilePutBE32(FILE *file, uint32_t value)
+{
+	fputc(value >> 24, file);
+	fputc(value >> 16, file);
+	fputc(value >>  8, file);
+	fputc(value >>  0, file);
+}
+
 char *FileGetDirectory(const char *fn)
 {
 	char *out = Strdup(fn);

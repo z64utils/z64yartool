@@ -16,6 +16,8 @@ char *FileLoadAsString(const char *fn);
 bool FileIsLoaded(const char *fn, const void *data);
 char *FileGetDirectory(const char *fn);
 
+void FilePutBE32(FILE *file, uint32_t value);
+
 uint32_t U32read(const void *src);
 
 char *Strdup(const char *str);

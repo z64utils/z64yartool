@@ -16,9 +16,11 @@
 
 #include "common.h"
 #include "yar.h" // from z64compress
+#include "yaz.h" // from z64compress
 #include "n64texconv.h" // from z64convert
 #include "recipe.h"
 #include "stb_image_write.h"
+#include "stb_image.h"
 
 struct YarEntry
 {
@@ -180,6 +182,92 @@ static int YarDump(const char *input)
 
 static int YarBuild(const char *input)
 {
+	struct Recipe *recipe = RecipeRead(input);
+	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	void *yazCtx = yazCtx_new();
+	FILE *out;
+	unsigned int rel;
+	
+	assert(buffer);
+	assert(recipe);
+	
+	if (!(out = fopen(recipe->yarName, "wb")))
+	{
+		fprintf(stderr, "failed to open '%s' for writing\n", recipe->yarName);
+		exit(EXIT_FAILURE);
+	}
+	
+	// header
+	FilePutBE32(out, (recipe->count + 1) * sizeof(uint32_t));
+	for (int i = 0; i < recipe->count; ++i)
+		FilePutBE32(out, 0);
+	rel = ftell(out);
+	
+	for (struct RecipeItem *this = recipe->head; this; this = this->next)
+	{
+		const char *imgFn = this->imageFilename;
+		const char *errmsg = 0;
+		void *pix;
+		int w;
+		int h;
+		int unused;
+		unsigned int sz;
+		
+		// load image
+		if (!(pix = stbi_load(imgFn, &w, &h, &unused, STBI_rgb_alpha)))
+		{
+			fprintf(stderr, "failed to load image '%s'\n", imgFn);
+			exit(EXIT_FAILURE);
+		}
+		
+		// assert no size change
+		if (this->width != w || this->height != h)
+		{
+			fprintf(stderr, "'%s' image unexpected dimensions\n", imgFn);
+			exit(EXIT_FAILURE);
+		}
+		
+		// convert to n64 pixel format
+		if ((errmsg = n64texconv_to_n64(pix, pix, 0, -1, this->fmt, this->bpp, w, h, &sz)))
+		{
+			fprintf(stderr, "'%s' conversion error: %s\n", imgFn, errmsg);
+			exit(EXIT_FAILURE);
+		}
+		
+		// compress
+		if (yazenc(pix, sz, buffer, &sz, yazCtx))
+		{
+			fprintf(stderr, "compression error\n");
+			exit(EXIT_FAILURE);
+		}
+		
+		// write
+		if (fwrite(buffer, 1, sz, out) != sz)
+		{
+			fprintf(stderr, "error writing to file '%s'\n", recipe->yarName);
+			exit(EXIT_FAILURE);
+		}
+		
+		// alignment
+		while (ftell(out) & 3)
+			fputc(0, out);
+		
+		// used for header later
+		this->endOffset = ftell(out) - rel;
+		
+		// cleanup
+		free(pix);
+	}
+	
+	// header
+	fseek(out, 4, SEEK_SET);
+	for (struct RecipeItem *this = recipe->head; this; this = this->next)
+		FilePutBE32(out, this->endOffset);
+	
+	fclose(out);
+	RecipeFree(recipe);
+	yazCtx_free(yazCtx);
+	free(buffer);
 	return EXIT_SUCCESS;
 }
 

@@ -58,6 +58,8 @@ struct Recipe *RecipeRead(const char *filename)
 		int width;
 		int height;
 		
+		recipe->count += 1;
+		
 		assert(this);
 		
 		if (sscanf(tmp, "%dx%d,%[^,]", &width, &height, fmt) != 3)
