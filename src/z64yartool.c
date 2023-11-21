@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include "common.h"
+#include "yar.h" // from z64compress
 
 struct YarEntry
 {
@@ -104,6 +105,13 @@ static int YarStat(const char *input)
 
 static int YarUnyar(const char *infn, const char *outfn)
 {
+	if (unyar(infn, outfn, true))
+	{
+		fprintf(stderr, "unyar '%s' into '%s' failed\n", infn, outfn);
+		
+		return EXIT_FAILURE;
+	}
+	
 	return EXIT_SUCCESS;
 }
 
