@@ -259,6 +259,10 @@ static int YarBuild(const char *input)
 		free(pix);
 	}
 	
+	// alignment
+	while (ftell(out) & 15)
+		fputc(0, out);
+	
 	// header
 	fseek(out, 4, SEEK_SET);
 	for (struct RecipeItem *this = recipe->head; this; this = this->next)
