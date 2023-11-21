@@ -139,7 +139,11 @@ static int YarDump(const char *input)
 	
 	RecipePrint(recipe);
 	
+#ifdef _WIN32
+	mkdir(recipe->imageDir);
+#else
 	mkdir(recipe->imageDir, 0777);
+#endif
 	yarEntry = yar->head;
 	for (struct RecipeItem *this = recipe->head
 		; this && yarEntry
