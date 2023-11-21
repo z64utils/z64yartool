@@ -300,7 +300,7 @@ int main(int argc, const char *argv[])
 	const char *input = argv[2];
 	
 	fprintf(stderr, "welcome to z64yartool v1.0.0 <z64.me>\n");
-	fprintf(stderr, "build date: TODO\n");
+	fprintf(stderr, "build date: %s at %s\n", __DATE__, __TIME__);
 	
 	if ((!command || strcmp(command, "unyar")) && argc != 3)
 		ShowArgsAndExit();
