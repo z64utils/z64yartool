@@ -1,0 +1,18 @@
+spot_name_static.yar # relative path
+spot_name_static/ # where the images live
+128x16,ia4,GreatBay.png
+128x16,ia4,ZoraHall.png
+128x16,ia4,RomaniRanch.png
+128x16,ia4,DekuPalace.png
+128x16,ia4,Woodfall.png
+128x16,ia4,ClockTown.png
+128x16,ia4,Snowhead.png
+128x16,ia4,IkanaGraveyard.png
+128x16,ia4,IkanaCanyon.png
+128x16,ia4,GoronVillage.png
+128x16,ia4,StoneTower.png
+128x16,ia4,GreatBayCoast.png
+128x16,ia4,SouthernSwamp.png
+128x16,ia4,MountainVillage.png
+128x16,ia4,MilkRoad.png
+128x16,ia4,ZoraCape.png

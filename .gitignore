@@ -1,2 +1,3 @@
-bin/
+bin/*
+!bin/spot_name_static.txt
 
