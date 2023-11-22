@@ -195,7 +195,9 @@ static int YarBuild(const char *input)
 	assert(buffer);
 	assert(recipe);
 	
-	if (!(out = fopen(recipe->yarName, "wb")))
+	// TODO zzrtl doesn't like the filesize changing, so use rb+ instead of wb for now
+	//if (!(out = fopen(recipe->yarName, "wb")))
+	if (!(out = fopen(recipe->yarName, "rb+")))
 	{
 		fprintf(stderr, "failed to open '%s' for writing\n", recipe->yarName);
 		exit(EXIT_FAILURE);
