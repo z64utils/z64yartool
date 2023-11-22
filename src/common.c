@@ -77,7 +77,7 @@ char *FileGetDirectory(const char *fn)
 	char *ss1 = strrchr(out, '\\'); // win32
 	
 	if (ss0 == ss1) // doesn't contain slashes
-		strcpy(out, "/");
+		strcpy(out, "");
 	else if (ss0 > ss1)
 		ss0[1] = '\0';
 	else if (ss1 > ss0)
