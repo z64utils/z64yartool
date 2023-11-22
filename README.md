@@ -1,4 +1,7 @@
-# `z64yartool` WIP guide
+# `z64yartool`
+
+Special thanks to [@Javarooster-png](https://github.com/Javarooster-png) for making recipes and helping test all the features! 🎉
+
 `z64yartool` is operated using commands. You have the following commands at your disposal:
 - `stat`
 - `unyar`
