@@ -31,6 +31,7 @@ void yazCtx_free(void *_ctx)
 	sb_free(ctx->cmds);
 	sb_free(ctx->ctl);
 	sb_free(ctx->back);
+	free(ctx);
 }
 
 void *yazCtx_new(void)

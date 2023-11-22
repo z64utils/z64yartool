@@ -110,6 +110,7 @@ struct Recipe *RecipeRead(const char *filename)
 		free(tmp);
 	}
 	
+	free(data);
 	return recipe;
 }
 
@@ -125,6 +126,9 @@ void RecipeFree(struct Recipe *recipe)
 	}
 	
 	free(recipe->filename);
+	free(recipe->directory);
+	free(recipe->yarName);
+	free(recipe->imageDir);
 	free(recipe);
 }
 
