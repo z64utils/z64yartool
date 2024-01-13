@@ -104,6 +104,7 @@ yar_reencode(
 	struct yarFile *list = 0;
 	struct yarFile *item;
 	int list_num;
+	int cur_index = 1; /* accounts for padding the end of the file */
 	
 	assert(src);
 	assert(sz);
@@ -234,8 +235,9 @@ yar_reencode(
 		
 		ss += 4;
 		item += 1;
+		cur_index += 1;
 	
-	} while ((unsigned)(ss - src) < end);
+	} while ((unsigned)(ss - src) < end && cur_index < list_num - 1);
 	
 	/* update progress display */
 	if (name)
