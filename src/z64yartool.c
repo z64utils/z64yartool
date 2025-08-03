@@ -127,9 +127,8 @@ static int YarUnyar(const char *infn, const char *outfn)
 	return EXIT_SUCCESS;
 }
 
-static int YarDump(const char *input)
+static int YarDump(struct Recipe *recipe)
 {
-	struct Recipe *recipe = RecipeRead(input);
 	struct Yar *yar = YarRead(recipe->yarName);
 	struct YarEntry *yarEntry;
 	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
@@ -176,7 +175,6 @@ static int YarDump(const char *input)
 		stbi_write_png(this->imageFilename, this->width, this->height, 4, bufferOut, this->width * 4);
 	}
 	
-	RecipeFree(recipe);
 	YarFree(yar);
 	
 	free(buffer);
@@ -184,9 +182,8 @@ static int YarDump(const char *input)
 	return EXIT_SUCCESS;
 }
 
-static int YarBuild(const char *input)
+static int YarBuild(struct Recipe *recipe)
 {
-	struct Recipe *recipe = RecipeRead(input);
 	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
 	void *yazCtx = yazCtx_new();
 	FILE *out;
@@ -275,10 +272,209 @@ static int YarBuild(const char *input)
 		FilePutBE32(out, this->endOffset);
 	
 	fclose(out);
-	RecipeFree(recipe);
 	yazCtx_free(yazCtx);
 	free(buffer);
 	return EXIT_SUCCESS;
+}
+
+static int RetextureDump(struct Recipe *recipe)
+{
+	size_t dataSz;
+	uint8_t *data = FileLoad(recipe->yarName, &dataSz);
+	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	int rval = EXIT_SUCCESS;
+	
+	assert(buffer);
+	
+	if (!data)
+	{
+		fprintf(stderr, "failed to read file '%s'\n", recipe->yarName);
+		return EXIT_FAILURE;
+	}
+	
+#ifdef _WIN32
+	mkdir(recipe->imageDir);
+#else
+	mkdir(recipe->imageDir, 0777);
+#endif
+	for (struct RecipeItem *this = recipe->head; this; this = this->next)
+	{
+		uint8_t *palette = 0;
+		const char *imageFn = this->imageFilename;
+		
+		// is palette
+		if (this->palMaxColors)
+		{
+			// is generated automatically
+			if (!strcmp(imageFn, "auto"))
+				continue;
+			
+			this->width = this->palMaxColors;
+			this->height = 1;
+		}
+		
+		if (this->fmt == N64TEXCONV_CI)
+		{
+			for (struct RecipeItem *i = recipe->head; i; i = i->next)
+				if (i->palMaxColors && i->palId == this->palId)
+					palette = data + i->writeAt;
+			
+			if (!palette)
+			{
+				fprintf(stderr, "failed to find palette %d for texture %s\n"
+					, this->palId, imageFn
+				);
+				rval = EXIT_FAILURE;
+				break;
+			}
+		}
+		
+		// convert to standard 32-bit rgba
+		n64texconv_to_rgba8888(
+			buffer
+			, data + this->writeAt
+			, palette
+			, this->fmt
+			, this->bpp
+			, this->width
+			, this->height
+		);
+		
+		// write as png
+		fprintf(stderr, "writing '%s'\n", imageFn);
+		stbi_write_png(imageFn, this->width, this->height, 4, buffer, this->width * 4);
+	}
+	
+	free(data);
+	free(buffer);
+	return rval;
+}
+
+static int RetextureBuildInject(struct RecipeItem *this, uint8_t **data, size_t *dataSz)
+{
+	const char *imgFn = this->imageFilename;
+	const char *errmsg = 0;
+	void *pix;
+	int w = 0;
+	int h = 0;
+	int unused;
+	unsigned int sz;
+	
+	// skip those already written
+	if (this->isAlreadyWritten)
+		return EXIT_SUCCESS;
+	
+	this->isAlreadyWritten = true;
+	
+	// TODO support this format
+	if (this->fmt == N64TEXCONV_CI)
+		return EXIT_SUCCESS;
+	
+	// load image
+	if (!(pix = stbi_load(imgFn, &w, &h, &unused, STBI_rgb_alpha)))
+	{
+		fprintf(stderr, "failed to load image '%s'\n", imgFn);
+		exit(EXIT_FAILURE);
+	}
+	
+	// assert no size change
+	if (this->width != w || this->height != h)
+	{
+		fprintf(stderr, "'%s' image unexpected dimensions\n", imgFn);
+		exit(EXIT_FAILURE);
+	}
+	
+	// convert to n64 pixel format
+	if ((errmsg = n64texconv_to_n64(pix, pix, 0, -1, this->fmt, this->bpp, w, h, &sz)))
+	{
+		fprintf(stderr, "'%s' conversion error: %s\n", imgFn, errmsg);
+		exit(EXIT_FAILURE);
+	}
+	
+	// write
+	if (this->writeAt == (unsigned int)-1)
+	{
+		fprintf(stderr, "no offset specified for image '%s'\n", imgFn);
+		exit(EXIT_FAILURE);
+	}
+	if (this->writeAt + sz > *dataSz)
+	{
+		*dataSz = (this->writeAt + sz) * 2;
+		*data = realloc(*data, *dataSz);
+	}
+	memcpy((*data) + this->writeAt, pix, sz);
+	
+	// cleanup
+	free(pix);
+	return EXIT_SUCCESS;
+}
+
+static int RetextureBuild(struct Recipe *recipe)
+{
+	size_t dataSz;
+	uint8_t *data = FileLoad(recipe->yarName, &dataSz);
+	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	int rval = EXIT_SUCCESS;
+	
+	assert(buffer);
+	
+	if (!data)
+	{
+		fprintf(stderr, "failed to read file '%s'\n", recipe->yarName);
+		return EXIT_FAILURE;
+	}
+	
+#ifdef _WIN32
+	mkdir(recipe->imageDir);
+#else
+	mkdir(recipe->imageDir, 0777);
+#endif
+	
+	// first pass: construct the palettes
+	for (struct RecipeItem *pal = recipe->head; pal; pal = pal->next)
+	{
+		// is not palette
+		if (pal->palMaxColors == 0)
+			continue;
+		
+		// if palette name != auto, load it from image file
+		if (strcmp(pal->imageFilename, "auto"))
+		{
+			RetextureBuildInject(pal, &data, &dataSz);
+			continue;
+		}
+		
+	// is autogen'd palette
+		
+		// load all the images into buffer
+		for (struct RecipeItem *this = recipe->head; this; this = this->next)
+		{
+			// TODO
+		}
+		
+		// quantize them
+		// TODO
+		
+		// write the palette
+		// TODO
+		pal->isAlreadyWritten = true;
+	}
+	
+	for (struct RecipeItem *this = recipe->head; this; this = this->next)
+	{
+		RetextureBuildInject(this, &data, &dataSz);
+	}
+	
+	FILE *out = fopen(recipe->yarName, "wb");
+	if (fwrite(data, 1, dataSz, out) != dataSz)
+	{
+		fprintf(stderr, "error writing to file '%s'\n", recipe->yarName);
+		exit(EXIT_FAILURE);
+	}
+	
+	free(data);
+	free(buffer);
+	return rval;
 }
 
 static void ShowArgs(void)
@@ -290,6 +486,7 @@ static void ShowArgs(void)
 	OUT(" z64yartool unyar input.yar output.bin")
 	OUT(" z64yartool dump recipe.txt")
 	OUT(" z64yartool build recipe.txt")
+	OUT(" z64yartool print recipe.txt")
 	
 	#undef OUT
 }
@@ -305,7 +502,7 @@ int main(int argc, const char *argv[])
 	const char *command = argv[1];
 	const char *input = argv[2];
 	
-	fprintf(stderr, "welcome to z64yartool v1.0.1 <z64.me> special thanks Javarooster\n");
+	fprintf(stderr, "welcome to z64yartool v1.1.0 [beta] <z64.me> special thanks Javarooster\n");
 	fprintf(stderr, "build date: %s at %s\n", __DATE__, __TIME__);
 	
 	if ((!command || strcmp(command, "unyar")) && argc != 3)
@@ -313,10 +510,37 @@ int main(int argc, const char *argv[])
 	
 	if (!strcmp(command, "stat"))
 		return YarStat(input);
-	else if (!strcmp(command, "dump"))
-		return YarDump(input);
-	else if (!strcmp(command, "build"))
-		return YarBuild(input);
+	else if (!strcmp(command, "dump")
+		|| !strcmp(command, "build")
+		|| !strcmp(command, "print")
+	)
+	{
+		struct Recipe *recipe = RecipeRead(input);
+		bool isDump = !strcmp(command, "dump");
+		int rval = 0;
+		
+		if (!strcmp(command, "print"))
+		{
+			RecipePrint(recipe);
+		}
+		else if (!strcmp(recipe->behavior, "z64retexture"))
+		{
+			if (isDump)
+				rval = RetextureDump(recipe);
+			else
+				rval = RetextureBuild(recipe);
+		}
+		else
+		{
+			if (isDump)
+				rval = YarDump(recipe);
+			else
+				rval = YarBuild(recipe);
+		}
+		
+		RecipeFree(recipe);
+		return rval;
+	}
 	else if (!strcmp(command, "unyar"))
 	{
 		const char *output = argv[3];
