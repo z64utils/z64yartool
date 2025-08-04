@@ -449,6 +449,7 @@ static int RetextureBuild(struct Recipe *recipe)
 		// if palette name != auto, load it from image file
 		if (strcmp(pal->imageFilename, "auto"))
 		{
+			// TODO still need to handle mapping textures to the palette if this scenario
 			RetextureBuildInject(pal, &data, &dataSz);
 			continue;
 		}
@@ -526,9 +527,10 @@ static int RetextureBuild(struct Recipe *recipe)
 			// 4-bit
 			if (this->bpp == N64TEXCONV_4)
 			{
-				fprintf(stderr, "warning: z64yartool needs ci4 conversion\n");
-				// TODO format conversion
+				// squash 8-bit bytes '01 02 03 04' into 4-bit '12 34'
 				bytes /= 2;
+				for (int i = 0; i < bytes; ++i)
+					buffer2[i] = (buffer2[i * 2] << 4) | (buffer2[i * 2 + 1] & 0xf);
 			}
 			
 			// write the texture
