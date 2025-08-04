@@ -175,6 +175,7 @@ void RecipeFree(struct Recipe *recipe)
 	free(recipe->directory);
 	free(recipe->yarName);
 	free(recipe->imageDir);
+	free(recipe->behavior);
 	free(recipe);
 }
 

@@ -554,6 +554,7 @@ static int RetextureBuild(struct Recipe *recipe)
 		fprintf(stderr, "error writing to file '%s'\n", recipe->yarName);
 		exit(EXIT_FAILURE);
 	}
+	fclose(out);
 	
 	free(data);
 	free(buffer);
