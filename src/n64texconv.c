@@ -23,10 +23,12 @@ struct vec4b_2n64 {
 #define CONV_31(x)  lut_31[x]
 #define CONV_255(x) x
 
+/*
 static const unsigned char lut_7[] =
 {
 	0, 36, 73, 109, 146, 182, 219, 255
 };
+*/
 
 static const unsigned char lut_15[] =
 {
@@ -92,7 +94,8 @@ N64_COLOR_FUNC(i4)
 
 N64_COLOR_FUNC(ia4)
 {
-	color->x = CONV_7(*b >> 1);
+	color->x = (*b & 0xE);
+	color->x |= color->x << 4;
 	color->y = color->x;
 	color->z = color->x;
 	color->w = ((*b) & 1) * 255;
@@ -206,7 +209,7 @@ N64_COLOR_FUNC_TO(i4)
 
 N64_COLOR_FUNC_TO(ia4)
 {
-	*b = ((color->x & 0xfe) >> 4) | (color->w >> 7);
+	*b = ((color->x & 0xee) >> 4) | (color->w >> 7);
 	return;
 	/* TUNING could omit float math altogether and just use (x & 7) */
 	float f = color->x * 0.003921569f;
