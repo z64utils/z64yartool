@@ -446,16 +446,6 @@ static int RetextureBuild(struct Recipe *recipe)
 		if (pal->palMaxColors == 0)
 			continue;
 		
-		// if palette name != auto, load it from image file
-		if (strcmp(pal->imageFilename, "auto"))
-		{
-			// TODO still need to handle mapping textures to the palette if this scenario
-			RetextureBuildInject(pal, &data, &dataSz);
-			continue;
-		}
-		
-	// is autogen'd palette
-		
 		// load all the images into buffer
 		for (struct RecipeItem *this = recipe->head; this; this = this->next)
 		{
@@ -500,11 +490,51 @@ static int RetextureBuild(struct Recipe *recipe)
 		}
 		
 		// quantize them and construct palette
-		palette = writeHead;
-		quant = exq_init();
-		exq_feed(quant, buffer, (writeHead - buffer) / STBI_rgb_alpha);
-		exq_quantize_hq(quant, pal->palMaxColors);
-		exq_get_palette(quant, palette, pal->palMaxColors);
+		{
+			palette = writeHead;
+			quant = exq_init();
+			
+			// if palette name != auto, load it from image file
+			if (strcmp(pal->imageFilename, "auto"))
+			{
+				void *pix;
+				const char *imgFn = pal->imageFilename;
+				int w;
+				int h;
+				int unused;
+				
+				// load image
+				if (!(pix = stbi_load(imgFn, &w, &h, &unused, STBI_rgb_alpha)))
+				{
+					fprintf(stderr, "failed to load palette '%s'\n", imgFn);
+					exit(EXIT_FAILURE);
+				}
+				
+				// assert size hasn't changed
+				if (w * h < pal->palMaxColors)
+				{
+					fprintf(stderr, "'%s' palette contains too few pixels\n", imgFn);
+					exit(EXIT_FAILURE);
+				}
+				else if (w * h > pal->palMaxColors)
+				{
+					fprintf(stderr, "warning: '%s' contains %d pixels, but only "
+						"the first %d will be used\n", imgFn, w * h, pal->palMaxColors
+					);
+				}
+				
+				// upload original palette
+				exq_feed(quant, pix, pal->palMaxColors);
+				stbi_image_free(pix);
+			}
+			// otherwise, generate one from the textures
+			else
+				exq_feed(quant, buffer, (writeHead - buffer) / STBI_rgb_alpha);
+			
+			// finalize palette
+			exq_quantize_hq(quant, pal->palMaxColors);
+			exq_get_palette(quant, palette, pal->palMaxColors);
+		}
 		
 		// apply palette to images as they are written
 		for (struct RecipeItem *this = recipe->head; this; this = this->next)
