@@ -30,13 +30,29 @@ struct Recipe *RecipeRead(const char *filename)
 	
 	assert(recipe);
 	
+	step = data;
+	while (*step == '#')
+		step = StringNextLine(step);
+	
 	recipe->filename = Strdup(filename);
 	recipe->directory = FileGetDirectory(filename);
-	recipe->yarName = StrdupContiguous(data);
+	recipe->behavior = StrdupContiguous(step);
 	
-	step = data;
-	step = StringNextLine(step);
 	assert(step);
+	
+	// not a behavior
+	if (recipe->behavior[0] != '*')
+	{
+		recipe->yarName = Strdup(recipe->behavior);
+		strcpy(recipe->behavior, "");
+	}
+	else
+	{
+		step = StringNextLine(step);
+		recipe->yarName = StrdupContiguous(step);
+	}
+	
+	step = StringNextLine(step);
 	recipe->imageDir = StrdupContiguous(step);
 	
 	// ensure ends in a slash
@@ -55,14 +71,20 @@ struct Recipe *RecipeRead(const char *filename)
 		struct RecipeItem *this = calloc(1, sizeof(*this));
 		char *tmp = StrdupContiguous(step);
 		char fmt[32];
+		char filename[512];
+		int palId = -1;
+		int palMaxColors = 0;
 		int width;
 		int height;
+		unsigned int writeAt = -1;
 		
 		recipe->count += 1;
 		
 		assert(this);
 		
-		if (sscanf(tmp, "%dx%d,%[^,]", &width, &height, fmt) != 3)
+		if (sscanf(tmp, "%dx%d,%[^,],%[^, #\r\n],%x", &width, &height, fmt, filename, &writeAt) < 4
+			&& sscanf(tmp, "%d,pal-%d,%[^,],%[^, #\r\n],%x", &palMaxColors, &palId, fmt, filename, &writeAt) < 4
+		)
 		{
 			fprintf(stderr, "unexpectedly formatted line: '%s'\n", tmp);
 			exit(EXIT_FAILURE);
@@ -71,8 +93,8 @@ struct Recipe *RecipeRead(const char *filename)
 		// TODO check each combination individually since there are so few
 		if (strstr(fmt, "rgba"))
 			this->fmt = N64TEXCONV_RGBA;
-		//else if (strstr(fmt, "ci")) // color-indexed formats are unsupported for now
-		//	this->fmt = N64TEXCONV_CI;
+		else if (strstr(fmt, "ci")) // color-indexed formats are unsupported for now
+			this->fmt = N64TEXCONV_CI;
 		else if (strstr(fmt, "ia"))
 			this->fmt = N64TEXCONV_IA;
 		else if (strstr(fmt, "i"))
@@ -96,10 +118,33 @@ struct Recipe *RecipeRead(const char *filename)
 			exit(EXIT_FAILURE);
 		}
 		
+		// get palette id
+		if (this->fmt == N64TEXCONV_CI)
+		{
+			if (!strrchr(fmt, '-')
+				|| sscanf(strrchr(fmt, '-') + 1, "%d", &palId) != 1
+			)
+			{
+				fprintf(stderr, "provided ci format w/o specifying which palette: '%s'\n", fmt);
+				fprintf(stderr, "(ci4 and ci8 are expected to end in -n, where n = palette id)\n");
+				fprintf(stderr, "(for example: ci8-0 specifies ci8 format using palette 0)\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+		
 		this->width = width;
 		this->height = height;
-		this->imageFilename = malloc(strlen(recipe->imageDir) + strlen(tmp) + 1);
-		sprintf(this->imageFilename, "%s%s", recipe->imageDir, strrchr(tmp, ',') + 1);
+		this->writeAt = writeAt;
+		this->palId = palId;
+		this->palMaxColors = palMaxColors;
+		
+		if (palMaxColors && !strcmp(filename, "auto"))
+			this->imageFilename = Strdup(filename);
+		else
+		{
+			this->imageFilename = malloc(strlen(recipe->imageDir) + strlen(filename) + 1);
+			sprintf(this->imageFilename, "%s%s", recipe->imageDir, filename);
+		}
 		
 		if (prev)
 			prev->next = this;
@@ -129,6 +174,7 @@ void RecipeFree(struct Recipe *recipe)
 	free(recipe->directory);
 	free(recipe->yarName);
 	free(recipe->imageDir);
+	free(recipe->behavior);
 	free(recipe);
 }
 
@@ -142,6 +188,11 @@ void RecipePrint(struct Recipe *recipe)
 	fprintf(stderr, " items:\n");
 	
 	for (struct RecipeItem *this = recipe->head; this; this = this->next)
-		fprintf(stderr, "  '%s', %dx%d\n", this->imageFilename, this->width, this->height);
+	{
+		fprintf(stderr, "  '%s', %dx%d", this->imageFilename, this->width, this->height);
+		if (this->writeAt != (unsigned int)-1) fprintf(stderr, ", .writeAt = 0x%x", this->writeAt);
+		if (this->palId >= 0) fprintf(stderr, ", .palId = %d", this->palId);
+		fprintf(stderr, "\n");
+	}
 }
 
