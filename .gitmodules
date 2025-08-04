@@ -1,0 +1,3 @@
+[submodule "exoquant"]
+	path = exoquant
+	url = https://github.com/exoticorn/exoquant
