@@ -405,7 +405,11 @@ static int RetextureBuildInject(struct RecipeItem *this, uint8_t **data, size_t 
 	}
 	if (this->writeAt + sz > *dataSz)
 	{
-		*dataSz = (this->writeAt + sz) * 2;
+		// XXX dataSz gets used for writing result, so ideally there is
+		//     another dataAvailable that is tracked separately to limit
+		//     reallocations (realloc won't happen in 99% of cases though
+		//     so doing this isn't a big priority)
+		*dataSz = this->writeAt + sz;
 		*data = realloc(*data, *dataSz);
 	}
 	memcpy((*data) + this->writeAt, pix, sz);
