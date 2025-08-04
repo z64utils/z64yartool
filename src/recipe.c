@@ -21,7 +21,6 @@ struct Recipe *RecipeRead(const char *filename)
 	const char *step;
 	 // color-indexed formats are unsupported for now
 	const char *knownFmt = "rgba16, rgba32, ia4, ia8, ia16, i4, i8";
-	const char *behaviors = "z64retexture, etc";
 	
 	if (!data)
 	{
@@ -42,7 +41,7 @@ struct Recipe *RecipeRead(const char *filename)
 	assert(step);
 	
 	// not a behavior
-	if (!strstr(behaviors, recipe->behavior))
+	if (recipe->behavior[0] != '*')
 	{
 		recipe->yarName = Strdup(recipe->behavior);
 		strcpy(recipe->behavior, "");

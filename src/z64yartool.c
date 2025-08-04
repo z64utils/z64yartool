@@ -367,9 +367,11 @@ static int RetextureBuildInject(struct RecipeItem *this, uint8_t **data, size_t 
 	
 	this->isAlreadyWritten = true;
 	
-	// TODO support this format
+	// color-indexed textures are handled in a previous step
 	if (this->fmt == N64TEXCONV_CI)
 	{
+		// so this should never be printed; if this texture was
+		// handled in a previous step, isAlreadyWritten == true
 		fprintf(stderr, "skipping '%s'\n", imgFn);
 		return EXIT_SUCCESS;
 	}
@@ -549,7 +551,9 @@ static int RetextureBuild(struct Recipe *recipe)
 			if (!udata)
 				continue;
 			
-			if (true) // dithering
+			if (strstr(recipe->behavior, "random-dither"))
+				exq_map_image_dither(quant, w, h, this->udata, buffer2, 0);
+			else if (strstr(recipe->behavior, "dither"))
 				exq_map_image_ordered(quant, w, h, this->udata, buffer2);
 			else
 				exq_map_image(quant, w * h, this->udata, buffer2);
@@ -640,7 +644,7 @@ int main(int argc, const char *argv[])
 		{
 			RecipePrint(recipe);
 		}
-		else if (!strcmp(recipe->behavior, "z64retexture"))
+		else if (recipe->behavior[0] == '*')
 		{
 			if (isDump)
 				rval = RetextureDump(recipe);
