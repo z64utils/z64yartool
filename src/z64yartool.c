@@ -623,7 +623,7 @@ int main(int argc, const char *argv[])
 	const char *command = argv[1];
 	const char *input = argv[2];
 	
-	fprintf(stderr, "welcome to z64yartool v1.1.0 [beta] <z64.me> special thanks Javarooster\n");
+	fprintf(stderr, "welcome to z64yartool v1.1.0 <z64.me> special thanks Javarooster\n");
 	fprintf(stderr, "build date: %s at %s\n", __DATE__, __TIME__);
 	
 	if ((!command || strcmp(command, "unyar")) && argc != 3)
