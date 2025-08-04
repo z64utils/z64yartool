@@ -24,7 +24,7 @@ struct RecipeItem
 	enum n64texconv_bpp bpp;
 	unsigned int writeAt;
 	unsigned int endOffset;
-	void *data;
+	void *udata;
 	bool isAlreadyWritten;
 };
 

@@ -785,3 +785,27 @@ n64texconv_to_n64(
 	return 0;
 }
 
+
+const char *
+n64texconv_to_n64_and_back(
+	unsigned char *pix
+	, unsigned char *pal
+	, int pal_colors
+	, enum n64texconv_fmt fmt
+	, enum n64texconv_bpp bpp
+	, int w
+	, int h
+)
+{
+	const char *err;
+	
+	err = n64texconv_to_n64(pix, pix, pal, pal_colors, fmt, bpp, w, h, 0);
+	if (err)
+		return err;
+	
+	err = n64texconv_to_rgba8888(pix, pix, pal, fmt, bpp, w, h);
+	if (err)
+		return err;
+	
+	return 0;
+}

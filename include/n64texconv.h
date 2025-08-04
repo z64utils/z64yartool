@@ -76,5 +76,17 @@ n64texconv_to_n64(
 	, unsigned int *sz
 );
 
+
+const char *
+n64texconv_to_n64_and_back(
+	unsigned char *pix
+	, unsigned char *pal
+	, int pal_colors
+	, enum n64texconv_fmt fmt
+	, enum n64texconv_bpp bpp
+	, int w
+	, int h
+);
+
 #endif /* N64TEXCONV_H_INCLUDED */
 

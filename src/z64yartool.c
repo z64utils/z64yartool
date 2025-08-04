@@ -21,6 +21,7 @@
 #include "recipe.h"
 #include "stb_image_write.h"
 #include "stb_image.h"
+#include "exoquant.h"
 
 struct YarEntry
 {
@@ -259,7 +260,7 @@ static int YarBuild(struct Recipe *recipe)
 		this->endOffset = ftell(out) - rel;
 		
 		// cleanup
-		free(pix);
+		stbi_image_free(pix);
 	}
 	
 	// alignment
@@ -368,7 +369,10 @@ static int RetextureBuildInject(struct RecipeItem *this, uint8_t **data, size_t 
 	
 	// TODO support this format
 	if (this->fmt == N64TEXCONV_CI)
+	{
+		fprintf(stderr, "skipping '%s'\n", imgFn);
 		return EXIT_SUCCESS;
+	}
 	
 	// load image
 	if (!(pix = stbi_load(imgFn, &w, &h, &unused, STBI_rgb_alpha)))
@@ -405,7 +409,7 @@ static int RetextureBuildInject(struct RecipeItem *this, uint8_t **data, size_t 
 	memcpy((*data) + this->writeAt, pix, sz);
 	
 	// cleanup
-	free(pix);
+	stbi_image_free(pix);
 	return EXIT_SUCCESS;
 }
 
@@ -413,8 +417,13 @@ static int RetextureBuild(struct Recipe *recipe)
 {
 	size_t dataSz;
 	uint8_t *data = FileLoad(recipe->yarName, &dataSz);
-	void *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	uint8_t *buffer = malloc(512 * 1024); // 512 KiB is plenty
+	uint8_t *buffer2 = malloc(512 * 1024);
+	uint8_t *writeHead = buffer;
+	uint8_t *palette;
+	exq_data *quant;
 	int rval = EXIT_SUCCESS;
+	unsigned int sz;
 	
 	assert(buffer);
 	
@@ -449,15 +458,89 @@ static int RetextureBuild(struct Recipe *recipe)
 		// load all the images into buffer
 		for (struct RecipeItem *this = recipe->head; this; this = this->next)
 		{
-			// TODO
+			const char *imgFn = this->imageFilename;
+			const char *errmsg;
+			void *pix;
+			int w;
+			int h;
+			int unused;
+			
+			// skip images that aren't using this palette
+			if (this->fmt != N64TEXCONV_CI || pal->palId != this->palId)
+				continue;
+			
+			// load image
+			if (!(pix = stbi_load(imgFn, &w, &h, &unused, STBI_rgb_alpha)))
+			{
+				fprintf(stderr, "failed to load image '%s'\n", imgFn);
+				exit(EXIT_FAILURE);
+			}
+			
+			// assert no size change
+			if (this->width != w || this->height != h)
+			{
+				fprintf(stderr, "'%s' image unexpected dimensions\n", imgFn);
+				exit(EXIT_FAILURE);
+			}
+			
+			// simplify colors to make for easier quantization
+			if ((errmsg = n64texconv_to_n64_and_back(pix, 0, 0, N64TEXCONV_RGBA, N64TEXCONV_16, w, h)))
+			{
+				fprintf(stderr, "'%s' conversion error: %s\n", imgFn, errmsg);
+				exit(EXIT_FAILURE);
+			}
+			
+			// write into buffer
+			this->udata = writeHead;
+			memcpy(writeHead, pix, w * h * STBI_rgb_alpha);
+			writeHead += w * h * STBI_rgb_alpha;
+			
+			stbi_image_free(pix);
 		}
 		
-		// quantize them
-		// TODO
+		// quantize them and construct palette
+		palette = writeHead;
+		quant = exq_init();
+		exq_feed(quant, buffer, (writeHead - buffer) / STBI_rgb_alpha);
+		exq_quantize_hq(quant, pal->palMaxColors);
+		exq_get_palette(quant, palette, pal->palMaxColors);
+		
+		// apply palette to images as they are written
+		for (struct RecipeItem *this = recipe->head; this; this = this->next)
+		{
+			void *udata = this->udata;
+			uint8_t *dst = data + this->writeAt;
+			int w = this->width;
+			int h = this->height;
+			int bytes = w * h;
+			
+			// skip images that aren't using this palette
+			if (!udata)
+				continue;
+			
+			if (true) // dithering
+				exq_map_image_ordered(quant, w, h, this->udata, buffer2);
+			else
+				exq_map_image(quant, w * h, this->udata, buffer2);
+			
+			// 4-bit
+			if (this->bpp == N64TEXCONV_4)
+			{
+				fprintf(stderr, "warning: z64yartool needs ci4 conversion\n");
+				// TODO format conversion
+				bytes /= 2;
+			}
+			
+			// write the texture
+			memcpy(dst, buffer2, bytes);
+			this->udata = 0;
+			this->isAlreadyWritten = true;
+		}
 		
 		// write the palette
-		// TODO
+		n64texconv_to_n64(data + pal->writeAt, palette, 0, -1, pal->fmt, pal->bpp, pal->palMaxColors, 1, &sz);
 		pal->isAlreadyWritten = true;
+		exq_free(quant);
 	}
 	
 	for (struct RecipeItem *this = recipe->head; this; this = this->next)
@@ -474,6 +557,7 @@ static int RetextureBuild(struct Recipe *recipe)
 	
 	free(data);
 	free(buffer);
+	free(buffer2);
 	return rval;
 }
 
