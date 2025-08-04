@@ -39,7 +39,6 @@ struct Recipe *RecipeRead(const char *filename)
 	recipe->directory = FileGetDirectory(filename);
 	recipe->behavior = StrdupContiguous(step);
 	
-	step = StringNextLine(step);
 	assert(step);
 	
 	// not a behavior
@@ -50,6 +49,7 @@ struct Recipe *RecipeRead(const char *filename)
 	}
 	else
 	{
+		step = StringNextLine(step);
 		recipe->yarName = StrdupContiguous(step);
 	}
 	
